@@ -67,6 +67,88 @@ Requires [codex CLI](https://github.com/openai/codex) for review. See the full [
   <img src="docs/images/monitor.png" alt="Humanize Monitor" width="680"/>
 </p>
 
+## Using Third-Party Models (OpenRouter)
+
+Humanize supports third-party model providers like [OpenRouter](https://openrouter.ai/) through the Codex CLI's custom provider configuration. This lets you use models like Nemotron, DeepSeek, Qwen, Gemini, and others for both implementation review and ask-codex queries.
+
+### Setup
+
+**1. Configure Codex CLI to use OpenRouter**
+
+Edit `~/.codex/config.toml`:
+
+```toml
+model_provider = "crs"
+model = "nvidia/nemotron-3-super-120b-a12b:free"
+
+[model_providers.crs]
+name = "crs"
+base_url = "https://openrouter.ai/api/v1"
+wire_api = "responses"
+requires_openai_auth = true
+```
+
+Edit `~/.codex/auth.json`:
+
+```json
+{
+  "auth_mode": "apikey",
+  "OPENAI_API_KEY": "sk-or-v1-your-openrouter-api-key"
+}
+```
+
+**2. Apply the OpenRouter compatibility patch**
+
+OpenRouter model names contain `/` and `:` (e.g. `nvidia/nemotron-3-super-120b-a12b:free`), which the default humanize installation rejects. Run the patch script to fix this:
+
+```bash
+bash patches/fix-humanize-openrouter-model.sh
+```
+
+This patch:
+- Relaxes model name validation to allow `/`, `:`, `+`
+- Fixes the `MODEL:EFFORT` parser so `:free` in model names isn't mistaken for an effort level
+- Allows empty model config so Codex falls back to `config.toml`
+
+The patch is idempotent -- safe to run multiple times.
+
+**3. Test**
+
+```bash
+codex exec "say hello"
+```
+
+### Usage with Humanize
+
+```bash
+# ask-codex: pass the full model name
+/humanize:ask-codex --codex-model nvidia/nemotron-3-super-120b-a12b:free "your question"
+
+# ask-codex: with explicit effort level (append after the model name)
+/humanize:ask-codex --codex-model nvidia/nemotron-3-super-120b-a12b:free:medium "your question"
+
+# RLCR loop: same syntax
+/humanize:start-rlcr-loop plan.md --codex-model nvidia/nemotron-3-super-120b-a12b:free:high
+
+# Or omit --codex-model entirely to use whatever is in config.toml
+/humanize:ask-codex "your question"
+```
+
+### Tested Models
+
+| Model | OpenRouter ID | Free |
+|-------|---------------|------|
+| Nemotron 120B | `nvidia/nemotron-3-super-120b-a12b:free` | Yes |
+| DeepSeek R1 | `deepseek/deepseek-r1:free` | Yes |
+| DeepSeek V3 | `deepseek/deepseek-chat-v3-0324:free` | Yes |
+| Qwen3 235B | `qwen/qwen3-235b-a22b:free` | Yes |
+| Qwen3 32B | `qwen/qwen3-32b:free` | Yes |
+| Llama 4 Maverick | `meta-llama/llama-4-maverick:free` | Yes |
+| Gemini 2.5 Pro | `google/gemini-2.5-pro-preview` | No |
+| GPT-4o | `openai/gpt-4o` | No |
+
+> **Note**: Free models may have rate limits and may not support all Codex features (e.g. tool calling). Test with `codex exec "say hello"` before starting an RLCR loop.
+
 ## Documentation
 
 - [Usage Guide](docs/usage.md) -- Commands, options, environment variables
