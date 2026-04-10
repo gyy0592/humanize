@@ -113,7 +113,7 @@ MAX_ITERATIONS="$STATE_MAX_ITERATIONS"
 PUSH_EVERY_ROUND="$STATE_PUSH_EVERY_ROUND"
 FULL_REVIEW_ROUND="${STATE_FULL_REVIEW_ROUND:-5}"
 REVIEW_STARTED="$STATE_REVIEW_STARTED"
-CODEX_EXEC_MODEL="${STATE_CODEX_MODEL:-$DEFAULT_CODEX_MODEL}"
+CODEX_EXEC_MODEL="${STATE_CODEX_MODEL:-${DEFAULT_CODEX_MODEL:-}}"
 CODEX_EXEC_EFFORT="${STATE_CODEX_EFFORT:-$DEFAULT_CODEX_EFFORT}"
 CODEX_REVIEW_MODEL="$CODEX_EXEC_MODEL"
 CODEX_REVIEW_EFFORT="high"
@@ -146,8 +146,8 @@ if [[ "$BITLESSON_ALLOW_EMPTY_NONE" != "true" && "$BITLESSON_ALLOW_EMPTY_NONE" !
     BITLESSON_ALLOW_EMPTY_NONE="true"
 fi
 # Re-validate Codex Model and Effort for YAML safety (in case state.md was manually edited)
-# Use same validation patterns as setup-rlcr-loop.sh
-if [[ ! "$CODEX_EXEC_MODEL" =~ ^[a-zA-Z0-9._-]+$ ]]; then
+# Allow empty (uses config.toml default) or alphanumeric, hyphen, underscore, dot, slash, colon, plus
+if [[ -n "$CODEX_EXEC_MODEL" && ! "$CODEX_EXEC_MODEL" =~ ^[a-zA-Z0-9._/:+-]+$ ]]; then
     echo "Error: Invalid codex_model in state file: $CODEX_EXEC_MODEL" >&2
     end_loop "$LOOP_DIR" "$STATE_FILE" "$EXIT_UNEXPECTED"
     exit 0
@@ -981,7 +981,12 @@ mkdir -p "$CACHE_DIR"
 # portable-timeout.sh already sourced above
 
 # Build command arguments for summary review (codex exec)
-CODEX_EXEC_ARGS=("-m" "$CODEX_EXEC_MODEL")
+# When model is empty, omit -m so codex uses ~/.codex/config.toml default
+# (needed for OpenRouter models whose names contain / and :)
+CODEX_EXEC_ARGS=()
+if [[ -n "$CODEX_EXEC_MODEL" ]]; then
+    CODEX_EXEC_ARGS+=("-m" "$CODEX_EXEC_MODEL")
+fi
 if [[ -n "$CODEX_EXEC_EFFORT" ]]; then
     CODEX_EXEC_ARGS+=("-c" "model_reasoning_effort=${CODEX_EXEC_EFFORT}")
 fi
@@ -993,7 +998,11 @@ fi
 CODEX_EXEC_ARGS+=("$CODEX_AUTO_FLAG" "-C" "$PROJECT_ROOT")
 
 # Build Codex command arguments for codex review
-CODEX_REVIEW_ARGS=("-c" "model=${CODEX_REVIEW_MODEL}" "-c" "review_model=${CODEX_REVIEW_MODEL}")
+# When model is empty, omit model overrides so codex uses config.toml default
+CODEX_REVIEW_ARGS=()
+if [[ -n "$CODEX_REVIEW_MODEL" ]]; then
+    CODEX_REVIEW_ARGS+=("-c" "model=${CODEX_REVIEW_MODEL}" "-c" "review_model=${CODEX_REVIEW_MODEL}")
+fi
 if [[ -n "$CODEX_REVIEW_EFFORT" ]]; then
     CODEX_REVIEW_ARGS+=("-c" "model_reasoning_effort=${CODEX_REVIEW_EFFORT}")
 fi

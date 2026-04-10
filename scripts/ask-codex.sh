@@ -169,11 +169,12 @@ if [[ -z "$QUESTION" ]]; then
     exit 1
 fi
 
-# Validate codex model for safety (alphanumeric, hyphen, underscore, dot)
-if [[ ! "$CODEX_MODEL" =~ ^[a-zA-Z0-9._-]+$ ]]; then
+# Validate codex model for safety
+# Allow empty (uses config.toml default) or alphanumeric, hyphen, underscore, dot, slash, colon, plus
+if [[ -n "$CODEX_MODEL" && ! "$CODEX_MODEL" =~ ^[a-zA-Z0-9._/:+-]+$ ]]; then
     echo "Error: Codex model contains invalid characters" >&2
     echo "  Model: $CODEX_MODEL" >&2
-    echo "  Only alphanumeric, hyphen, underscore, dot allowed" >&2
+    echo "  Only alphanumeric, hyphen, underscore, dot, slash, colon, plus allowed" >&2
     exit 1
 fi
 
@@ -241,7 +242,11 @@ EOF
 # ========================================
 
 # Build codex exec arguments (same pattern as loop-codex-stop-hook.sh)
-CODEX_EXEC_ARGS=("-m" "$CODEX_MODEL")
+# When model is empty, omit -m so codex uses ~/.codex/config.toml default
+CODEX_EXEC_ARGS=()
+if [[ -n "$CODEX_MODEL" ]]; then
+    CODEX_EXEC_ARGS+=("-m" "$CODEX_MODEL")
+fi
 if [[ -n "$CODEX_EFFORT" ]]; then
     CODEX_EXEC_ARGS+=("-c" "model_reasoning_effort=${CODEX_EFFORT}")
 fi

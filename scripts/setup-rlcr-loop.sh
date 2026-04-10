@@ -40,7 +40,7 @@ PLAN_FILE=""
 PLAN_FILE_EXPLICIT=""
 TRACK_PLAN_FILE="false"
 MAX_ITERATIONS="$DEFAULT_MAX_ITERATIONS"
-CODEX_MODEL="$DEFAULT_CODEX_MODEL"
+CODEX_MODEL="${DEFAULT_CODEX_MODEL:-}"
 CODEX_EFFORT="$DEFAULT_CODEX_EFFORT"
 CODEX_TIMEOUT="$DEFAULT_CODEX_TIMEOUT"
 PUSH_EVERY_ROUND="false"
@@ -662,11 +662,11 @@ if [[ "$START_BRANCH" == *[:\#\"\'\`]* ]] || [[ "$START_BRANCH" =~ $'\n' ]]; the
 fi
 
 # Validate codex model for YAML safety
-# Only alphanumeric, hyphen, underscore, dot allowed
-if [[ ! "$CODEX_MODEL" =~ ^[a-zA-Z0-9._-]+$ ]]; then
+# Allow empty (uses config.toml default) or alphanumeric, hyphen, underscore, dot, slash, colon, plus
+if [[ -n "$CODEX_MODEL" && ! "$CODEX_MODEL" =~ ^[a-zA-Z0-9._/:+-]+$ ]]; then
     echo "Error: Codex model contains invalid characters" >&2
     echo "  Model: $CODEX_MODEL" >&2
-    echo "  Only alphanumeric, hyphen, underscore, dot allowed" >&2
+    echo "  Only alphanumeric, hyphen, underscore, dot, slash, colon, plus allowed" >&2
     exit 1
 fi
 

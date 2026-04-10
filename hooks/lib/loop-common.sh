@@ -184,17 +184,14 @@ DEFAULT_BITLESSON_MODEL="${DEFAULT_BITLESSON_MODEL:-haiku}"
 # defaults for all Codex-using features (RLCR, PR loop, ask-codex).
 # Precedence: pre-set by caller (e.g. PR loop) > config value > hardcoded fallback (gpt-5.4/high)
 _cfg_codex_model="$(get_config_value "$_LOOP_COMMON_CONFIG" "codex_model" 2>/dev/null || true)"
-if [[ -n "$_cfg_codex_model" && ! "$_cfg_codex_model" =~ ^[a-zA-Z0-9._-]+$ ]]; then
+# Allow OpenRouter-style model names with / and : (e.g. nvidia/nemotron-3-super-120b-a12b:free)
+if [[ -n "$_cfg_codex_model" && ! "$_cfg_codex_model" =~ ^[a-zA-Z0-9._/:+-]+$ ]]; then
     echo "Warning: Invalid codex_model in merged config: $_cfg_codex_model" >&2
     echo "  Ignoring configured codex_model; using caller preset or fallback" >&2
     _cfg_codex_model=""
-elif [[ -n "$_cfg_codex_model" && ! "$_cfg_codex_model" =~ ^(gpt-|o[0-9]) ]]; then
-    echo "Warning: Unsupported codex_model in merged config: $_cfg_codex_model" >&2
-    echo "  Must start with a Codex model prefix: gpt- or o[0-9]" >&2
-    echo "  Ignoring configured codex_model; using caller preset or fallback" >&2
-    _cfg_codex_model=""
 fi
-DEFAULT_CODEX_MODEL="${DEFAULT_CODEX_MODEL:-${_cfg_codex_model:-gpt-5.4}}"
+# Empty string means "use ~/.codex/config.toml default" (needed for OpenRouter models)
+DEFAULT_CODEX_MODEL="${DEFAULT_CODEX_MODEL:-${_cfg_codex_model:-}}"
 _cfg_codex_effort="$(get_config_value "$_LOOP_COMMON_CONFIG" "codex_effort" 2>/dev/null || true)"
 if [[ -n "$_cfg_codex_effort" && ! "$_cfg_codex_effort" =~ ^(xhigh|high|medium|low)$ ]]; then
     echo "Warning: Invalid codex_effort in merged config: $_cfg_codex_effort" >&2
