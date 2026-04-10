@@ -107,10 +107,13 @@ while [[ $# -gt 0 ]]; do
                 echo "Error: --codex-model requires a MODEL:EFFORT argument" >&2
                 exit 1
             fi
-            # Parse MODEL:EFFORT format (same pattern as setup-rlcr-loop.sh)
-            if [[ "$2" == *:* ]]; then
-                CODEX_MODEL="${2%%:*}"
-                CODEX_EFFORT="${2#*:}"
+            # Parse MODEL:EFFORT format
+            # Use last : as separator, but only if the suffix is a valid effort level
+            # This handles OpenRouter names like nvidia/nemotron-3-super-120b-a12b:free
+            _last_part="${2##*:}"
+            if [[ "$2" == *:* && "$_last_part" =~ ^(xhigh|high|medium|low|none|minimal)$ ]]; then
+                CODEX_MODEL="${2%:*}"
+                CODEX_EFFORT="$_last_part"
             else
                 CODEX_MODEL="$2"
                 CODEX_EFFORT="$DEFAULT_CODEX_EFFORT"
