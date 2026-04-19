@@ -37,7 +37,7 @@ The loop has two phases: **Implementation** (Claude works, Codex reviews summari
 /plugin install humanize@PolyArch
 ```
 
-Requires [codex CLI](https://github.com/openai/codex) for review. See the full [Installation Guide](docs/install-for-claude.md) for prerequisites and alternative setup options.
+Requires [codex CLI](https://github.com/openai/codex) for review, or use `--reviewer claude` to review with a fresh Claude instance instead. See the full [Installation Guide](docs/install-for-claude.md) for prerequisites and alternative setup options.
 
 ## Quick Start
 
@@ -56,12 +56,19 @@ Requires [codex CLI](https://github.com/openai/codex) for review. See the full [
    /humanize:start-rlcr-loop docs/plan.md
    ```
 
-4. **Consult Gemini** for deep web research (requires Gemini CLI):
+4. **Use Claude as reviewer** (no Codex required):
+   ```bash
+   /humanize:start-rlcr-loop docs/plan.md --reviewer claude
+   # Pick a model (sonnet, haiku, opus; default: sonnet)
+   /humanize:start-rlcr-loop docs/plan.md --reviewer claude --claude-model opus
+   ```
+
+5. **Consult Gemini** for deep web research (requires Gemini CLI):
    ```bash
    /humanize:ask-gemini What are the latest best practices for X?
    ```
 
-5. **Monitor progress (in another terminal, not inside Claude Code)**:
+6. **Monitor progress (in another terminal, not inside Claude Code)**:
    ```bash
    source <path/to/humanize>/scripts/humanize.sh # Or just add it into your .bashec or .zshrc
    humanize monitor rlcr       # RLCR loop
