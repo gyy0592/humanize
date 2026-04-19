@@ -38,6 +38,8 @@ readonly FIELD_FULL_REVIEW_ROUND="full_review_round"
 readonly FIELD_ASK_CODEX_QUESTION="ask_codex_question"
 readonly FIELD_SESSION_ID="session_id"
 readonly FIELD_AGENT_TEAMS="agent_teams"
+readonly FIELD_REVIEWER="reviewer"
+readonly FIELD_CLAUDE_REVIEW_MODEL="claude_review_model"
 readonly FIELD_PRIVACY_MODE="privacy_mode"
 readonly FIELD_MAINLINE_STALL_COUNT="mainline_stall_count"
 readonly FIELD_LAST_MAINLINE_VERDICT="last_mainline_verdict"
@@ -462,6 +464,8 @@ _parse_state_fields() {
     STATE_ASK_CODEX_QUESTION=$(echo "$STATE_FRONTMATTER" | grep "^${FIELD_ASK_CODEX_QUESTION}:" | sed "s/${FIELD_ASK_CODEX_QUESTION}: *//" | tr -d ' ' || true)
     STATE_SESSION_ID=$(echo "$STATE_FRONTMATTER" | grep "^${FIELD_SESSION_ID}:" | sed "s/${FIELD_SESSION_ID}: *//" || true)
     STATE_AGENT_TEAMS=$(echo "$STATE_FRONTMATTER" | grep "^${FIELD_AGENT_TEAMS}:" | sed "s/${FIELD_AGENT_TEAMS}: *//" | tr -d ' ' || true)
+    STATE_REVIEWER=$(echo "$STATE_FRONTMATTER" | grep "^${FIELD_REVIEWER}:" | sed "s/${FIELD_REVIEWER}: *//" | tr -d ' ' || true)
+    STATE_CLAUDE_REVIEW_MODEL=$(echo "$STATE_FRONTMATTER" | grep "^${FIELD_CLAUDE_REVIEW_MODEL}:" | sed "s/${FIELD_CLAUDE_REVIEW_MODEL}: *//" | tr -d ' ' || true)
     STATE_PRIVACY_MODE=$(echo "$STATE_FRONTMATTER" | grep "^${FIELD_PRIVACY_MODE}:" | sed "s/${FIELD_PRIVACY_MODE}: *//" | tr -d ' ' || true)
     STATE_MAINLINE_STALL_COUNT=$(echo "$STATE_FRONTMATTER" | grep "^${FIELD_MAINLINE_STALL_COUNT}:" | sed "s/${FIELD_MAINLINE_STALL_COUNT}: *//" | tr -d ' ' || true)
     STATE_LAST_MAINLINE_VERDICT=$(echo "$STATE_FRONTMATTER" | grep "^${FIELD_LAST_MAINLINE_VERDICT}:" | sed "s/${FIELD_LAST_MAINLINE_VERDICT}: *//" | tr -d ' ' || true)
@@ -739,12 +743,13 @@ upsert_state_fields() {
 # which contains both stdout and stderr (redirected with 2>&1).
 detect_review_issues() {
     local round="$1"
-    local log_file="$CACHE_DIR/round-${round}-codex-review.log"
+    local reviewer="${STATE_REVIEWER:-codex}"
+    local log_file="$CACHE_DIR/round-${round}-${reviewer}-review.log"
     local result_file="$LOOP_DIR/round-${round}-review-result.md"
 
     # Check if log file exists and is not empty
     if [[ ! -f "$log_file" || ! -s "$log_file" ]]; then
-        echo "Error: Codex review log file not found or empty: $log_file" >&2
+        echo "Error: Review log file not found or empty: $log_file" >&2
         return 2
     fi
 
