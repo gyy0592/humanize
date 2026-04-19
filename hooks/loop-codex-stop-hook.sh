@@ -140,6 +140,17 @@ CODEX_REVIEW_EFFORT="high"
 CODEX_TIMEOUT="${STATE_CODEX_TIMEOUT:-${CODEX_TIMEOUT:-$DEFAULT_CODEX_TIMEOUT}}"
 ASK_CODEX_QUESTION="${STATE_ASK_CODEX_QUESTION:-false}"
 AGENT_TEAMS="${STATE_AGENT_TEAMS:-false}"
+REVIEWER="${STATE_REVIEWER:-codex}"
+if [[ "$REVIEWER" != "codex" && "$REVIEWER" != "claude" ]]; then
+    echo "Warning: unknown reviewer '$REVIEWER', falling back to codex" >&2
+    REVIEWER="codex"
+fi
+CLAUDE_REVIEW_MODEL="${STATE_CLAUDE_REVIEW_MODEL:-sonnet}"
+# Accept known aliases or full claude model IDs; fallback to sonnet for invalid models
+if [[ "$CLAUDE_REVIEW_MODEL" != "sonnet" && "$CLAUDE_REVIEW_MODEL" != "haiku" && "$CLAUDE_REVIEW_MODEL" != "opus" && ! "$CLAUDE_REVIEW_MODEL" =~ ^claude- ]]; then
+    echo "Warning: unknown claude_review_model '$CLAUDE_REVIEW_MODEL', falling back to sonnet" >&2
+    CLAUDE_REVIEW_MODEL="sonnet"
+fi
 PRIVACY_MODE="${STATE_PRIVACY_MODE:-true}"
 BITLESSON_REQUIRED="false"
 if [[ -n "$RAW_BITLESSON_REQUIRED" ]]; then
@@ -1272,12 +1283,97 @@ Provider: codex
     return "$CODEX_REVIEW_EXIT_CODE"
 }
 
+# Run code review using a fresh Claude instance (claude -p)
+# This is the Claude-based alternative to run_codex_code_review.
+# Since there is no `claude review --base` equivalent, we generate the diff
+# ourselves and include it in the prompt, instructing Claude to use [P0]-[P9] markers.
+# Arguments: $1=round_number
+# Sets: CODEX_REVIEW_EXIT_CODE, CODEX_REVIEW_LOG_FILE
+# Returns: exit code from claude CLI
+run_claude_code_review() {
+    local round="$1"
+    local timestamp
+    timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+    local review_base="${BASE_COMMIT:-$BASE_BRANCH}"
+    local review_base_type="branch"
+    if [[ -n "$BASE_COMMIT" ]]; then
+        review_base_type="commit"
+    fi
+
+    CODEX_REVIEW_CMD_FILE="$CACHE_DIR/round-${round}-claude-review.cmd"
+    CODEX_REVIEW_LOG_FILE="$CACHE_DIR/round-${round}-claude-review.log"
+    local prompt_file="$LOOP_DIR/round-${round}-review-prompt.md"
+
+    # Generate diff
+    local diff_content
+    diff_content=$(cd "$PROJECT_ROOT" && git diff "$review_base"...HEAD 2>/dev/null) || true
+
+    if [[ -z "$diff_content" ]]; then
+        echo "Warning: git diff produced empty output" >&2
+        diff_content="(no changes detected)"
+    fi
+
+    # Truncate very large diffs to avoid exceeding context limits
+    local max_diff_chars=400000
+    local diff_len=${#diff_content}
+    if [[ "$diff_len" -gt "$max_diff_chars" ]]; then
+        echo "Warning: Diff is ${diff_len} chars, truncating to ${max_diff_chars}" >&2
+        diff_content="${diff_content:0:$max_diff_chars}
+
+... (truncated, ${diff_len} total chars)"
+    fi
+
+    # Build code review prompt matching [P0]-[P9] format that detect_review_issues expects
+    local review_prompt="You are a senior code reviewer. Review the following diff against the base (${review_base}).
+
+IMPORTANT: For each issue found, start the line with a severity marker [P0] through [P9] where:
+- [P0] = critical/blocking (security, data loss, crash)
+- [P1]-[P3] = high severity (bugs, logic errors)
+- [P4]-[P6] = medium severity (code quality, maintainability)
+- [P7]-[P9] = low severity (style, naming)
+
+The marker MUST appear in the first 10 characters of the line.
+If there are no issues, respond with a clear statement and no [P?] markers.
+
+## Diff
+
+\`\`\`diff
+${diff_content}
+\`\`\`"
+
+    printf '%s\n' "$review_prompt" > "$prompt_file"
+    echo "Code review prompt saved to: $prompt_file" >&2
+
+    {
+        echo "# Claude code review invocation debug info"
+        echo "# Timestamp: $timestamp"
+        echo "# Working directory: $PROJECT_ROOT"
+        echo "# Base ($review_base_type): $review_base"
+        echo "# Timeout: $CODEX_TIMEOUT seconds"
+        echo ""
+        echo "printf '%s' \"\$PROMPT\" | claude -p --model $CLAUDE_REVIEW_MODEL --permission-mode bypassPermissions --add-dir \"$PROJECT_ROOT\" -"
+    } > "$CODEX_REVIEW_CMD_FILE"
+
+    echo "Running Claude ($CLAUDE_REVIEW_MODEL) code review with timeout ${CODEX_TIMEOUT}s..." >&2
+
+    CODEX_REVIEW_EXIT_CODE=0
+    printf '%s' "$review_prompt" | run_with_timeout "$CODEX_TIMEOUT" \
+        claude -p --model "$CLAUDE_REVIEW_MODEL" --permission-mode bypassPermissions --add-dir "$PROJECT_ROOT" - \
+        > "$CODEX_REVIEW_LOG_FILE" 2>"${CODEX_REVIEW_LOG_FILE%.log}.err" || CODEX_REVIEW_EXIT_CODE=$?
+
+    echo "Claude code review exit code: $CODEX_REVIEW_EXIT_CODE" >&2
+    echo "Code review log saved to: $CODEX_REVIEW_LOG_FILE" >&2
+
+    return "$CODEX_REVIEW_EXIT_CODE"
+}
+
 # Note: detect_review_issues() is defined in loop-common.sh and sourced above
 
 # Run code review and handle the result
 # Arguments: $1=round_number, $2=success_system_message
 # This function consolidates the common pattern of:
-#   1. Running codex review (no prompt - uses --base only)
+#   1. Running review (codex or claude based on REVIEWER setting)
 #   2. Checking results and handling outcomes
 # On success (no issues), calls enter_finalize_phase and exits
 # On issues found, calls continue_review_loop_with_issues and exits
@@ -1289,12 +1385,18 @@ run_and_handle_code_review() {
     local round="$1"
     local success_msg="$2"
 
-    echo "Running codex review against base branch: $BASE_BRANCH..." >&2
+    echo "Running $REVIEWER review against base branch: $BASE_BRANCH..." >&2
 
-    # Run codex review using helper function
+    # Run review using helper function (codex or claude based on REVIEWER setting)
     # IMPORTANT: Review failure is a blocking error - do NOT skip to finalize
-    if ! run_codex_code_review "$round"; then
-        block_review_failure "$round" "Codex review command failed" "$CODEX_REVIEW_EXIT_CODE"
+    if [[ "$REVIEWER" == "claude" ]]; then
+        if ! run_claude_code_review "$round"; then
+            block_review_failure "$round" "Claude review command failed" "$CODEX_REVIEW_EXIT_CODE"
+        fi
+    else
+        if ! run_codex_code_review "$round"; then
+            block_review_failure "$round" "Codex review command failed" "$CODEX_REVIEW_EXIT_CODE"
+        fi
     fi
 
     # Check both stdout and result file for [P0-9] issues (plan requirement)
@@ -1305,7 +1407,7 @@ run_and_handle_code_review() {
 
     if [[ "$detect_exit" -eq 2 ]]; then
         # Stdout missing/empty is a hard error - block and require retry
-        block_review_failure "$round" "Codex review produced no stdout output" "N/A"
+        block_review_failure "$round" "$REVIEWER review produced no stdout output" "N/A"
     elif [[ "$detect_exit" -eq 0 ]] && [[ -n "$merged_content" ]]; then
         # Issues found - continue review loop
         continue_review_loop_with_issues "$round" "$merged_content"
