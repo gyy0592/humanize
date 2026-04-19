@@ -52,6 +52,8 @@ SKIP_IMPL_PLAN_ANCHORED="false"
 ASK_CODEX_QUESTION="true"
 AGENT_TEAMS="${DEFAULT_AGENT_TEAMS:-false}"
 BITLESSON_ALLOW_EMPTY_NONE="true"
+REVIEWER="codex"
+CLAUDE_REVIEW_MODEL="sonnet"
 PRIVACY_MODE="false"
 
 extract_plan_goal_content() {
@@ -136,6 +138,14 @@ OPTIONS:
                        Allow BitLesson delta with action:none even with no new entries (default)
   --require-bitlesson-entry-for-none
                        Require at least one BitLesson entry when action is none
+  --reviewer <TYPE>    Review engine: 'codex' (default) or 'claude'.
+                       'claude' spawns a fresh zero-context Claude instance
+                       (claude -p --bare) instead of codex exec/review for
+                       both summary review and code review phases.
+  --claude-model <MODEL>
+                       Claude model for review when --reviewer claude is used.
+                       One of: sonnet, haiku, opus, or full model ID like
+                       claude-sonnet-4-20250514 (default: sonnet).
   --privacy            Disable methodology analysis at loop exit (default: analysis enabled)
   -h, --help           Show this help message
 
@@ -296,6 +306,31 @@ while [[ $# -gt 0 ]]; do
         --require-bitlesson-entry-for-none)
             BITLESSON_ALLOW_EMPTY_NONE="false"
             shift
+            ;;
+        --reviewer)
+            if [[ -z "${2:-}" ]]; then
+                echo "Error: --reviewer requires an argument (codex or claude)" >&2
+                exit 1
+            fi
+            if [[ "$2" != "codex" && "$2" != "claude" ]]; then
+                echo "Error: --reviewer must be 'codex' or 'claude', got: $2" >&2
+                exit 1
+            fi
+            REVIEWER="$2"
+            shift 2
+            ;;
+        --claude-model)
+            if [[ -z "${2:-}" ]]; then
+                echo "Error: --claude-model requires an argument (e.g., sonnet, haiku, opus, or claude-sonnet-4-20250514)" >&2
+                exit 1
+            fi
+            # Accept known aliases or full claude model IDs
+            if [[ "$2" != "sonnet" && "$2" != "haiku" && "$2" != "opus" && ! "$2" =~ ^claude- ]]; then
+                echo "Error: --claude-model must be 'sonnet', 'haiku', 'opus', or a full Claude model ID (e.g., claude-sonnet-4-20250514), got: $2" >&2
+                exit 1
+            fi
+            CLAUDE_REVIEW_MODEL="$2"
+            shift 2
             ;;
         --privacy)
             PRIVACY_MODE="true"
@@ -895,6 +930,8 @@ review_started: $INITIAL_REVIEW_STARTED
 ask_codex_question: $ASK_CODEX_QUESTION
 session_id:
 agent_teams: $AGENT_TEAMS
+reviewer: $REVIEWER
+claude_review_model: $CLAUDE_REVIEW_MODEL
 privacy_mode: $PRIVACY_MODE
 bitlesson_required: $BITLESSON_STATE_VALUE
 bitlesson_file: $BITLESSON_FILE_REL
