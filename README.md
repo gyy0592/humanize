@@ -77,6 +77,38 @@ Requires [codex CLI](https://github.com/openai/codex) for review, or use `--revi
    humanize monitor gemini     # Gemini invocations only
    ```
 
+## Keeping Updated (Fork Maintenance)
+
+This fork maintains Claude functionality while staying current with upstream improvements:
+
+### **Branch Structure**
+- `claude-pure` - Pure Claude features only (stable feature branch)
+- `claude-latest` - Claude features + latest upstream (daily use branch)
+
+### **Update Workflow**
+```bash
+# When PolyArch/humanize dev has new features:
+cd ~/Programs/humanize
+git fetch upstream dev
+
+# Update daily-use branch (keeps Claude features + latest upstream)
+git checkout claude-latest
+git rebase upstream/dev
+# Resolve conflicts if needed, then:
+git push origin claude-latest --force-with-lease
+
+# claude-pure branch stays unchanged (pure Claude features only)
+```
+
+### **Installation**
+```bash
+# Local installation (recommended for development):
+/plugin marketplace add /path/to/humanize
+/plugin install humanize@PolyArch
+
+# Make sure you're on claude-latest branch for daily use
+```
+
 ## Monitor Dashboard
 
 <p align="center">
