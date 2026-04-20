@@ -1770,48 +1770,93 @@ if [[ "$REVIEW_STARTED" == "true" ]]; then
     # Jump directly to Review Phase section below (after the COMPLETE/STOP handling)
 else
 
-echo "Running summary review for round $CURRENT_ROUND via codex..." >&2
+echo "Running summary review for round $CURRENT_ROUND via $REVIEWER..." >&2
 
-CODEX_CMD_FILE="$CACHE_DIR/round-${CURRENT_ROUND}-codex-run.cmd"
-CODEX_STDOUT_FILE="$CACHE_DIR/round-${CURRENT_ROUND}-codex-run.out"
-CODEX_STDERR_FILE="$CACHE_DIR/round-${CURRENT_ROUND}-codex-run.log"
+if [[ "$REVIEWER" == "claude" ]]; then
+    # Use Claude for implementation phase summary review
+    CLAUDE_CMD_FILE="$CACHE_DIR/round-${CURRENT_ROUND}-claude-run.cmd"
+    CLAUDE_STDOUT_FILE="$CACHE_DIR/round-${CURRENT_ROUND}-claude-run.out"
+    CLAUDE_STDERR_FILE="$CACHE_DIR/round-${CURRENT_ROUND}-claude-run.log"
 
-# Save the command for debugging
-CODEX_PROMPT_CONTENT=$(cat "$REVIEW_PROMPT_FILE")
-{
-    echo "# Codex invocation debug info"
-    echo "# Timestamp: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-    echo "# Working directory: $PROJECT_ROOT"
-    echo "# Timeout: $CODEX_TIMEOUT seconds"
-    echo ""
-    echo "codex exec ${CODEX_DISABLE_HOOKS_ARGS[*]} ${CODEX_EXEC_ARGS[*]} \"<prompt>\""
-    echo ""
-    echo "# Prompt content:"
-    echo "$CODEX_PROMPT_CONTENT"
-} > "$CODEX_CMD_FILE"
+    # Save the command for debugging
+    CLAUDE_PROMPT_CONTENT=$(cat "$REVIEW_PROMPT_FILE")
+    {
+        echo "# Claude invocation debug info"
+        echo "# Timestamp: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+        echo "# Working directory: $PROJECT_ROOT"
+        echo "# Timeout: $CODEX_TIMEOUT seconds"
+        echo ""
+        echo "printf '%s' \"\$PROMPT\" | claude -p --model $CLAUDE_REVIEW_MODEL --permission-mode bypassPermissions --add-dir \"$PROJECT_ROOT\" -"
+        echo ""
+        echo "# Prompt content:"
+        echo "$CLAUDE_PROMPT_CONTENT"
+    } > "$CLAUDE_CMD_FILE"
 
-echo "Codex command saved to: $CODEX_CMD_FILE" >&2
-echo "Running summary review with timeout ${CODEX_TIMEOUT}s..." >&2
+    echo "Claude command saved to: $CLAUDE_CMD_FILE" >&2
+    echo "Running Claude ($CLAUDE_REVIEW_MODEL) summary review with timeout ${CODEX_TIMEOUT}s..." >&2
 
-CODEX_EXIT_CODE=0
-printf '%s' "$CODEX_PROMPT_CONTENT" | run_with_timeout "$CODEX_TIMEOUT" codex exec "${CODEX_DISABLE_HOOKS_ARGS[@]}" "${CODEX_EXEC_ARGS[@]}" - \
-    > "$CODEX_STDOUT_FILE" 2> "$CODEX_STDERR_FILE" || CODEX_EXIT_CODE=$?
+    CODEX_EXIT_CODE=0
+    printf '%s' "$CLAUDE_PROMPT_CONTENT" | run_with_timeout "$CODEX_TIMEOUT" \
+        claude -p --model "$CLAUDE_REVIEW_MODEL" --permission-mode bypassPermissions --add-dir "$PROJECT_ROOT" - \
+        > "$CLAUDE_STDOUT_FILE" 2> "$CLAUDE_STDERR_FILE" || CODEX_EXIT_CODE=$?
 
-echo "Codex exit code: $CODEX_EXIT_CODE" >&2
-echo "Codex stdout saved to: $CODEX_STDOUT_FILE" >&2
-echo "Codex stderr saved to: $CODEX_STDERR_FILE" >&2
+    echo "Claude exit code: $CODEX_EXIT_CODE" >&2
+    echo "Claude stdout saved to: $CLAUDE_STDOUT_FILE" >&2
+    echo "Claude stderr saved to: $CLAUDE_STDERR_FILE" >&2
+
+else
+    # Use existing Codex logic for backward compatibility
+    CODEX_CMD_FILE="$CACHE_DIR/round-${CURRENT_ROUND}-codex-run.cmd"
+    CODEX_STDOUT_FILE="$CACHE_DIR/round-${CURRENT_ROUND}-codex-run.out"
+    CODEX_STDERR_FILE="$CACHE_DIR/round-${CURRENT_ROUND}-codex-run.log"
+
+    # Save the command for debugging
+    CODEX_PROMPT_CONTENT=$(cat "$REVIEW_PROMPT_FILE")
+    {
+        echo "# Codex invocation debug info"
+        echo "# Timestamp: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+        echo "# Working directory: $PROJECT_ROOT"
+        echo "# Timeout: $CODEX_TIMEOUT seconds"
+        echo ""
+        echo "codex exec ${CODEX_DISABLE_HOOKS_ARGS[*]} ${CODEX_EXEC_ARGS[*]} \"<prompt>\""
+        echo ""
+        echo "# Prompt content:"
+        echo "$CODEX_PROMPT_CONTENT"
+    } > "$CODEX_CMD_FILE"
+
+    echo "Codex command saved to: $CODEX_CMD_FILE" >&2
+    echo "Running codex summary review with timeout ${CODEX_TIMEOUT}s..." >&2
+
+    CODEX_EXIT_CODE=0
+    printf '%s' "$CODEX_PROMPT_CONTENT" | run_with_timeout "$CODEX_TIMEOUT" codex exec "${CODEX_DISABLE_HOOKS_ARGS[@]}" "${CODEX_EXEC_ARGS[@]}" - \
+        > "$CODEX_STDOUT_FILE" 2> "$CODEX_STDERR_FILE" || CODEX_EXIT_CODE=$?
+fi
+
+if [[ "$REVIEWER" == "claude" ]]; then
+    echo "Claude exit code: $CODEX_EXIT_CODE" >&2
+    echo "Claude stdout saved to: $CLAUDE_STDOUT_FILE" >&2
+    echo "Claude stderr saved to: $CLAUDE_STDERR_FILE" >&2
+    # Set file variables for downstream compatibility (codex_failure_exit, etc.)
+    CODEX_CMD_FILE="$CLAUDE_CMD_FILE"
+    CODEX_STDOUT_FILE="$CLAUDE_STDOUT_FILE"
+    CODEX_STDERR_FILE="$CLAUDE_STDERR_FILE"
+else
+    echo "Codex exit code: $CODEX_EXIT_CODE" >&2
+    echo "Codex stdout saved to: $CODEX_STDOUT_FILE" >&2
+    echo "Codex stderr saved to: $CODEX_STDERR_FILE" >&2
+fi
 
 # ========================================
 # Check Codex Execution Result
 # ========================================
 
-# Helper function to print Codex failure and block exit for retry
+# Helper function to print reviewer failure and block exit for retry
 # Uses JSON output with exit 0 (per Claude Code hooks spec) instead of exit 2
 codex_failure_exit() {
     local error_type="$1"
     local details="$2"
 
-    REASON="# Codex Review Failed
+    REASON="# $REVIEWER Review Failed
 
 **Error Type:** $error_type
 
