@@ -118,7 +118,7 @@ This command starts an iterative development loop where:
 
 1. You execute the implementation plan with task-tag routing
    - `coding` tasks: Claude executes directly
-   - `analyze` tasks: execute via `/humanize:ask-codex`
+   - `analyze` tasks: execute via the reviewer skill selected at loop start (e.g., `/humanize:ask-codex`, `/humanize:ask-claude`, `/humanize:ask-gemini`). The reviewer is chosen based on available `ask-*` skills; `--reviewer` overrides that selection.
 2. Write a summary of your work to the specified summary file
 3. When you try to exit, Codex reviews your summary
 4. If Codex finds issues, you receive feedback and continue

@@ -18,7 +18,7 @@ Note: `codex review` does not accept prompt input; it performs automated code re
 
 ## Expected Output Format
 
-Codex review outputs issues in this format:
+The reviewer outputs issues in this format:
 ```
 - [P0] Critical issue description - /path/to/file.py:line-range
   Detailed explanation of the issue.

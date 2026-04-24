@@ -141,7 +141,7 @@ CODEX_TIMEOUT="${STATE_CODEX_TIMEOUT:-${CODEX_TIMEOUT:-$DEFAULT_CODEX_TIMEOUT}}"
 ASK_CODEX_QUESTION="${STATE_ASK_CODEX_QUESTION:-false}"
 AGENT_TEAMS="${STATE_AGENT_TEAMS:-false}"
 REVIEWER="${STATE_REVIEWER:-codex}"
-if [[ "$REVIEWER" != "codex" && "$REVIEWER" != "claude" ]]; then
+if [[ "$REVIEWER" != "codex" && "$REVIEWER" != "claude" && "$REVIEWER" != "gemini" ]]; then
     echo "Warning: unknown reviewer '$REVIEWER', falling back to codex" >&2
     REVIEWER="codex"
 fi
@@ -1141,8 +1141,8 @@ fi
 # Initialize these before the REVIEW_STARTED guard so they are available in both
 # impl phase (codex exec) and review phase (codex review)
 
-# First, check if Codex CLI exists
-if ! command -v codex >/dev/null 2>&1; then
+# Only require codex CLI when actually using codex as reviewer
+if [[ "${REVIEWER:-codex}" == "codex" ]] && ! command -v codex >/dev/null 2>&1; then
     REASON="# Codex CLI Not Found
 
 The 'codex' CLI is not installed or not in PATH.

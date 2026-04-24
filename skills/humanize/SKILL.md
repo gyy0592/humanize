@@ -174,7 +174,7 @@ The RLCR loop uses a Goal Tracker to prevent goal drift:
 
 ## Prerequisites
 
-- `codex` - OpenAI Codex CLI (for review)
+- At least one reviewer CLI must be available. The reviewer is discovered at runtime by scanning available `ask-*` skills under the plugin's `skills/` directory. If only one reviewer is found it is used automatically; if multiple are found the user is asked to choose. The `--reviewer` flag overrides discovery. Supported reviewers include `codex` (requires OpenAI Codex CLI), `claude`, and `gemini`.
 
 
 ## Directory Structure

@@ -97,7 +97,7 @@ The project's `.humanize/rlcr/{{LOOP_TIMESTAMP}}/` directory contains the histor
 - Claude making the same mistakes repeatedly
 - Circular discussions without resolution
 - No new code changes despite continued iterations
-- Codex giving similar feedback repeatedly without Claude addressing it
+- The reviewer giving similar feedback repeatedly without Claude addressing it
 
 **If development is stagnating**, write **STOP** (as a single word on its own line) as the last line of your review output @{{REVIEW_RESULT_FILE}} instead of COMPLETE.
 

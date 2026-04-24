@@ -32,7 +32,7 @@ source "$SCRIPT_DIR/portable-timeout.sh"
 # Default Configuration
 # ========================================
 
-DEFAULT_CLAUDE_MODEL="sonnet"
+DEFAULT_CLAUDE_MODEL="opus"
 DEFAULT_CLAUDE_TIMEOUT=3600
 
 CLAUDE_MODEL="$DEFAULT_CLAUDE_MODEL"

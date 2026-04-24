@@ -215,9 +215,9 @@ if [[ -n "$_cfg_codex_model" && ! "$_cfg_codex_model" =~ ^[a-zA-Z0-9._-]+$ ]]; t
     echo "Warning: Invalid codex_model in merged config: $_cfg_codex_model" >&2
     echo "  Ignoring configured codex_model; using caller preset or fallback" >&2
     _cfg_codex_model=""
-elif [[ -n "$_cfg_codex_model" && ! "$_cfg_codex_model" =~ ^(gpt-|o[0-9]) ]]; then
+elif [[ -n "$_cfg_codex_model" && ! "$_cfg_codex_model" =~ ^(gpt-|o[0-9]|claude-|sonnet|haiku|opus) ]]; then
     echo "Warning: Unsupported codex_model in merged config: $_cfg_codex_model" >&2
-    echo "  Must start with a Codex model prefix: gpt- or o[0-9]" >&2
+    echo "  Must start with a recognized model prefix: gpt-, o[0-9], claude-, or be a Claude alias (sonnet, haiku, opus)" >&2
     echo "  Ignoring configured codex_model; using caller preset or fallback" >&2
     _cfg_codex_model=""
 fi
