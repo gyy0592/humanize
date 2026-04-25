@@ -158,10 +158,10 @@ else
     fail "gen-plan command requires pending user decisions section" "Pending User Decisions section" "missing"
 fi
 
-if [[ -f "$GEN_PLAN_CMD" ]] && grep -q "## Phase 3: Codex First-Pass Analysis" "$GEN_PLAN_CMD"; then
+if [[ -f "$GEN_PLAN_CMD" ]] && grep -q "## Phase 3: First-Pass Analysis" "$GEN_PLAN_CMD"; then
     pass "gen-plan command includes codex first-pass analysis phase"
 else
-    fail "gen-plan command includes codex first-pass analysis phase" "Phase 3 codex first-pass section" "missing"
+    fail "gen-plan command includes codex first-pass analysis phase" "Phase 3 first-pass section" "missing"
 fi
 
 if [[ -f "$GEN_PLAN_CMD" ]] && grep -q "## Phase 5: Iterative Convergence Loop" "$GEN_PLAN_CMD"; then
@@ -177,7 +177,7 @@ else
 fi
 
 if [[ -f "$GEN_PLAN_CMD" ]]; then
-    PHASE3_LINE=$(grep -n "## Phase 3: Codex First-Pass Analysis" "$GEN_PLAN_CMD" | head -1 | cut -d: -f1 || true)
+    PHASE3_LINE=$(grep -n "## Phase 3: First-Pass Analysis" "$GEN_PLAN_CMD" | head -1 | cut -d: -f1 || true)
     PHASE4_LINE=$(grep -n "## Phase 4: Claude Candidate Plan (v1)" "$GEN_PLAN_CMD" | head -1 | cut -d: -f1 || true)
     if [[ -n "$PHASE3_LINE" && -n "$PHASE4_LINE" && "$PHASE3_LINE" -lt "$PHASE4_LINE" ]]; then
         pass "gen-plan command orders codex analysis before claude candidate plan"
