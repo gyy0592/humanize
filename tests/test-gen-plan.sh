@@ -186,10 +186,10 @@ if [[ -f "$GEN_PLAN_CMD" ]]; then
     fi
 fi
 
-if [[ -f "$PLAN_TEMPLATE" ]] && grep -q "## Claude-Codex Deliberation" "$PLAN_TEMPLATE"; then
-    pass "plan template includes Claude-Codex deliberation section"
+if [[ -f "$PLAN_TEMPLATE" ]] && grep -q "## Claude-Reviewer Deliberation" "$PLAN_TEMPLATE"; then
+    pass "plan template includes Claude-Reviewer deliberation section"
 else
-    fail "plan template includes Claude-Codex deliberation section" "Claude-Codex Deliberation section" "missing"
+    fail "plan template includes Claude-Reviewer deliberation section" "Claude-Reviewer Deliberation section" "missing"
 fi
 
 if [[ -f "$PLAN_TEMPLATE" ]] && grep -q "## Pending User Decisions" "$PLAN_TEMPLATE"; then
