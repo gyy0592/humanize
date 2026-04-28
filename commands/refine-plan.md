@@ -14,6 +14,8 @@ hide-from-slash-command-tool: "true"
 
 # Refine Annotated Plan
 
+> **Before any `AskUserQuestion` call, load and apply `~/.claude/rules/6_user_facing_questions.md`** (mandatory plain-language guard — four-piece set + jargon self-scan).
+
 Read and execute below with ultrathink.
 
 ## Hard Constraint: Planning-Only Refinement

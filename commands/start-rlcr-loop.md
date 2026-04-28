@@ -10,6 +10,8 @@ allowed-tools:
 
 # Start RLCR Loop
 
+> **Before any `AskUserQuestion` call, load and apply `~/.claude/rules/6_user_facing_questions.md`** (mandatory plain-language guard — four-piece set + jargon self-scan).
+
 ## Plan Compliance Pre-Check
 
 Before running the setup script, validate the plan file for compliance. This is a fool-proofing mechanism that catches obviously wrong plan files early.

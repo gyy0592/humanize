@@ -17,6 +17,8 @@ allowed-tools:
 
 # Generate Plan from Draft
 
+> **Before any `AskUserQuestion` call, load and apply `~/.claude/rules/6_user_facing_questions.md`** (mandatory plain-language guard — four-piece set + jargon self-scan).
+
 Read and execute below with ultrathink.
 
 ## Hard Constraint: No Coding During Plan Generation
